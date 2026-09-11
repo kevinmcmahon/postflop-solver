@@ -84,6 +84,13 @@ $ cargo run --release --example basic
 [rayon]: https://github.com/rayon-rs/rayon
 [zstd]: https://github.com/gyscos/zstd-rs
 
+## Development
+
+`tests/golden.rs` pins the output of the solver so that a change to the internals can be shown to
+leave the numbers alone, and `benches/solve.rs` measures how long a solve takes on the same games.
+[docs/benchmarks.md](docs/benchmarks.md) explains how to run both, how to record a baseline, and
+what a refactor of the solver has to show before it is accepted.
+
 ## License
 
 Copyright (C) 2022 Wataru Inariba

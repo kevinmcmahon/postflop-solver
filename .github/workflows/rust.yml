@@ -18,6 +18,7 @@ jobs:
     - name: Build
       run: |
         cargo build --release --features zstd
+        cargo bench --bench solve --no-run --features zstd
         cargo +nightly build --release --features custom-alloc
         cargo run --release --example basic
         cargo run --release --example file_io
