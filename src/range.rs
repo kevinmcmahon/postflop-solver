@@ -1,7 +1,7 @@
 use crate::card::*;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::fmt::Write;
+use std::fmt::{Display, Formatter, Write};
 use std::str::FromStr;
 
 #[cfg(feature = "bincode")]
@@ -990,14 +990,14 @@ impl FromStr for Range {
     }
 }
 
-impl ToString for Range {
+impl Display for Range {
     #[inline]
-    fn to_string(&self) -> String {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut result = Vec::new();
         self.pairs_strings(&mut result);
         self.nonpairs_strings(&mut result);
         self.suit_specified_strings(&mut result);
-        result.join(",")
+        f.write_str(&result.join(","))
     }
 }
 
