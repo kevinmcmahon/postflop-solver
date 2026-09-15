@@ -44,7 +44,9 @@ fn main() {
     let oop_cards_str = holes_to_strings(oop_cards).unwrap();
     assert_eq!(
         &oop_cards_str[..10],
-        &["5c4c", "Ac4c", "5d4d", "Ad4d", "5h4h", "Ah4h", "5s4s", "As4s", "6c5c", "7c5c"]
+        &[
+            "5c4c", "Ac4c", "5d4d", "Ad4d", "5h4h", "Ah4h", "5s4s", "As4s", "6c5c", "7c5c"
+        ]
     );
 
     // check memory usage

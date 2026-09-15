@@ -4,11 +4,7 @@ use std::mem::MaybeUninit;
 
 #[inline]
 fn min(x: f64, y: f64) -> f64 {
-    if x < y {
-        x
-    } else {
-        y
-    }
+    if x < y { x } else { y }
 }
 
 impl PostFlopGame {

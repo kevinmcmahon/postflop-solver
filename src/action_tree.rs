@@ -232,10 +232,9 @@ impl ActionTree {
             self.removed_lines.remove(index);
         } else {
             let mut line = line.to_vec();
-            if is_replaced {
-                if let Some(&Action::Bet(amount) | &Action::Raise(amount)) = line.last() {
-                    *line.last_mut().unwrap() = Action::AllIn(amount);
-                }
+            if is_replaced && let Some(&Action::Bet(amount) | &Action::Raise(amount)) = line.last()
+            {
+                *line.last_mut().unwrap() = Action::AllIn(amount);
             }
             self.added_lines.push(line);
         }

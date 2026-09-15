@@ -8,8 +8,8 @@
 //! The primary numbers are taken with `RAYON_NUM_THREADS=1`. Thread scheduling on a machine with
 //! both performance and efficiency cores adds far more variance than the effects worth catching.
 
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
-use postflop_solver::{solve, PostFlopGame};
+use criterion::{Criterion, SamplingMode, criterion_group, criterion_main};
+use postflop_solver::{PostFlopGame, solve};
 use std::time::Duration;
 
 mod scenarios;

@@ -3,10 +3,10 @@ use std::ops::{Deref, DerefMut};
 
 #[cfg(feature = "bincode")]
 use bincode::{
+    BorrowDecode, Decode, Encode,
     de::{BorrowDecoder, Decoder},
     enc::Encoder,
     error::{DecodeError, EncodeError},
-    BorrowDecode, Decode, Encode,
 };
 
 /// Mutex-like wrapper, but it actually does not perform any locking.

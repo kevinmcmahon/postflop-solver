@@ -40,11 +40,7 @@ pub(crate) fn into_par_iter(range: std::ops::Range<usize>) -> std::ops::Range<us
 
 #[inline]
 pub(crate) fn max(x: f32, y: f32) -> f32 {
-    if x > y {
-        x
-    } else {
-        y
-    }
+    if x > y { x } else { y }
 }
 
 #[inline]

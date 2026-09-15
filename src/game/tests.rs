@@ -1,8 +1,8 @@
 use super::*;
+use crate::BunchingData;
 use crate::range::*;
 use crate::solver::*;
 use crate::utility::*;
-use crate::BunchingData;
 
 #[test]
 fn all_check_all_range() {
