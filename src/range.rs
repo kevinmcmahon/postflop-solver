@@ -1,8 +1,8 @@
 use crate::card::*;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt::{Display, Formatter, Write};
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 #[cfg(feature = "bincode")]
 use bincode::{Decode, Encode};
@@ -54,14 +54,14 @@ enum Suitedness {
 const COMBO_PAT: &str = r"(?:(?:[AaKkQqJjTt2-9]{2}[os]?)|(?:(?:[AaKkQqJjTt2-9][cdhs]){2}))";
 const WEIGHT_PAT: &str = r"(?:(?:[01](\.\d*)?)|(?:\.\d+))";
 
-static RANGE_REGEX: Lazy<Regex> = Lazy::new(|| {
+static RANGE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(
         r"^(?P<range>{COMBO_PAT}(?:\+|(?:-{COMBO_PAT}))?)(?::(?P<weight>{WEIGHT_PAT}))?$"
     ))
     .unwrap()
 });
 
-static TRIM_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*([-:,])\s*").unwrap());
+static TRIM_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*([-:,])\s*").unwrap());
 
 #[inline]
 fn pair_indices(rank: u8) -> Vec<usize> {
