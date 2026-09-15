@@ -2,7 +2,6 @@ use crate::interface::*;
 use crate::mutex_like::*;
 use crate::sliceop::*;
 use std::mem::{self, MaybeUninit};
-use std::ptr;
 
 #[cfg(feature = "custom-alloc")]
 use crate::alloc::*;
@@ -227,12 +226,7 @@ pub(crate) fn encode_unsigned_slice(dst: &mut [u16], slice: &[f32]) -> f32 {
 #[inline]
 pub(crate) fn apply_swap<T>(slice: &mut [T], swap_list: &[(u16, u16)]) {
     for &(i, j) in swap_list {
-        unsafe {
-            ptr::swap(
-                slice.get_unchecked_mut(i as usize),
-                slice.get_unchecked_mut(j as usize),
-            );
-        }
+        slice.swap(i as usize, j as usize);
     }
 }
 
