@@ -1,6 +1,11 @@
 name: Rust
 on: [push, pull_request]
 
+# No job here writes to the repository or publishes anything, so the token they
+# receive is read only.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -62,6 +67,9 @@ jobs:
   nightly:
     name: Nightly
     runs-on: ubuntu-latest
+    # Miri runs the small game adapters under an interpreter, so this job takes
+    # minutes rather than seconds and needs a ceiling well above its usual cost.
+    timeout-minutes: 45
     env:
       RUSTFLAGS: --deny warnings
       RUSTDOCFLAGS: --deny warnings
@@ -80,7 +88,10 @@ jobs:
       - name: Build with custom-alloc
         run: cargo +nightly build --release --features custom-alloc
 
-      # The custom allocator keeps per-thread state, so the tests run serially.
+      # The custom allocator hands out memory from a per-thread stack and panics
+      # unless the allocations on a thread are freed in the reverse order they
+      # were made. Independent tests interleaving on shared rayon workers would
+      # break that order, so they run one at a time.
       - name: Test with custom-alloc
         run: cargo +nightly test --release --features custom-alloc -- --test-threads 1
 
