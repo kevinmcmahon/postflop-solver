@@ -32,8 +32,12 @@
 //! [Discounted CFR]: https://arxiv.org/abs/1809.04040
 //!
 //! # Crate features
-//! - `bincode`: Uses [bincode] crate (2.0.0-rc.3) to serialize and deserialize the `PostFlopGame` struct.
+//! - `bincode`: Uses [bincode] crate to serialize and deserialize the `PostFlopGame` struct.
 //!   This feature is required to save and load the game tree.
+//!   The dependency is pinned to exactly `2.0.0-rc.3`, because bincode 2.0.0 added a `Context`
+//!   generic to the `Decode` trait and the codec in this crate has not been migrated to that API.
+//!   `bincode_derive` carries the same exact pin: the dependency rc.3 declares on it is loose
+//!   enough to resolve to the incompatible 2.0.1 release, which carries the same trait change.
 //!   Enabled by default.
 //! - `custom-alloc`: Uses custom memory allocator in solving process (only available in nightly Rust).
 //!   It significantly reduces the number of calls of the default allocator,

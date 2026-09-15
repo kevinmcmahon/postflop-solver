@@ -64,12 +64,13 @@ same game on a pool of one thread and on a pool of four and asserts that the two
 All eight digests also come out unchanged from a build with
 `--no-default-features --features bincode`, which leaves rayon out of the crate altogether.
 
-One call sits outside that argument. `src/action_tree.rs:541` computes geometric bet sizes with
-`f64::powf`, which is a libm call rather than a correctly rounded IEEE operation, so its last bits
-may differ between platforms. The result is rounded to whole chips, so a difference has to cross a
-rounding boundary to be visible at all, and when it does it changes a bet amount and therefore the
-shape of the action tree. That surfaces as a different `nodes` count rather than as drift in the
-values, and it is the first thing to check if a Linux run disagrees with the checked-in files.
+One call sits outside that argument. The `powf` call in `src/action_tree.rs` computes geometric bet
+sizes, and `f64::powf` is a libm call rather than a correctly rounded IEEE operation, so its last
+bits may differ between platforms. The result is rounded to whole chips, so a difference has to
+cross a rounding boundary to be visible at all, and when it does it changes a bet amount and
+therefore the shape of the action tree. That surfaces as a different `nodes` count rather than as
+drift in the values, and it is the first thing to check if a Linux run disagrees with the
+checked-in files.
 
 If a run on another platform disagrees with the checked-in files, that is a result worth chasing
 rather than a reason to introduce a tolerance.

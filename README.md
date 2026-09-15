@@ -1,8 +1,12 @@
 # postflop-solver
 
-> [!IMPORTANT]
-> **As of October 2023, I have started developing a poker solver as a business and have decided to suspend development of this open-source project. See [this issue] for more information.**
+> [!NOTE]
+> This repository is Kevin McMahon's fork of [b-inary/postflop-solver].
+> The original author suspended development of the upstream project in October 2023 to build a poker
+> solver as a business. [This issue][this issue] carries the announcement.
+> This fork is maintained for the downstream apps and for further work on the solver.
 
+[b-inary/postflop-solver]: https://github.com/b-inary/postflop-solver
 [this issue]: https://github.com/b-inary/postflop-solver/issues/46
 
 ---
@@ -30,7 +34,7 @@ See [CHANGES.md](CHANGES.md) for details about breaking changes.
 
 ```toml
 [dependencies]
-postflop-solver = { git = "https://github.com/b-inary/postflop-solver" }
+postflop-solver = { git = "https://github.com/kevinmcmahon/postflop-solver" }
 ```
 
 - Examples
@@ -67,8 +71,12 @@ $ cargo run --release --example basic
 
 ## Crate features
 
-- `bincode`: Uses [bincode] crate (2.0.0-rc.3) to serialize and deserialize the `PostFlopGame` struct.
+- `bincode`: Uses [bincode] crate to serialize and deserialize the `PostFlopGame` struct.
   This feature is required to save and load the game tree.
+  The dependency is pinned to exactly `2.0.0-rc.3`, because bincode 2.0.0 added a `Context` generic
+  to the `Decode` trait and the codec in this crate has not been migrated to that API.
+  `bincode_derive` carries the same exact pin: the dependency rc.3 declares on it is loose enough to
+  resolve to the incompatible 2.0.1 release, which carries the same trait change.
   Enabled by default.
 - `custom-alloc`: Uses custom memory allocator in solving process (only available in nightly Rust).
   It significantly reduces the number of calls of the default allocator, so it is recommended to use this feature when the default allocator is not so efficient.
@@ -90,6 +98,10 @@ $ cargo run --release --example basic
 leave the numbers alone, and `benches/solve.rs` measures how long a solve takes on the same games.
 [docs/benchmarks.md](docs/benchmarks.md) explains how to run both, how to record a baseline, and
 what a refactor of the solver has to show before it is accepted.
+
+[AGENTS.md](AGENTS.md) holds the rest: the commands each area of the repository has to pass, a map
+of the source tree, the constraints the architecture places on a change, and the list of known
+follow-up work.
 
 ## License
 
