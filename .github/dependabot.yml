@@ -1,0 +1,35 @@
+version: 2
+
+updates:
+  # Minor and patch updates arrive as one pull request per ecosystem. Major
+  # updates stay separate, because they need the gates read one crate at a time.
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    # Both bincode crates are held at an exact version. The comment above the
+    # dependency in Cargo.toml carries the reason. An update has to wait for the
+    # codec migration, so proposing one only produces a pull request that cannot
+    # merge.
+    ignore:
+      - dependency-name: bincode
+      - dependency-name: bincode_derive
+    groups:
+      cargo-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch

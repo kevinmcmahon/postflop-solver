@@ -3,35 +3,93 @@ on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: --deny warnings
-  RUSTDOCFLAGS: --deny warnings
 
 jobs:
-  build:
+  stable:
+    name: Stable
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: --deny warnings
+      RUSTDOCFLAGS: --deny warnings
     steps:
-    - uses: actions/checkout@v3
-    - name: Install nightly
-      run: |
-        rustup toolchain install nightly
-        rustup +nightly component add clippy
-    - name: Build
-      run: |
-        cargo build --release --features zstd
-        cargo bench --bench solve --no-run --features zstd
-        cargo +nightly build --release --features custom-alloc
-        cargo run --release --example basic
-        cargo run --release --example file_io
-        cargo run --release --example node_locking
-    - name: Run tests
-      run: |
-        cargo test --release --features zstd
-        cargo +nightly test --release --features custom-alloc -- --test-threads 1
-    - name: Clippy
-      run: |
-        cargo clippy --release --features zstd -- -A clippy::needless_range_loop
-        cargo +nightly clippy --release --features custom-alloc -- -A clippy::needless_range_loop
-    - name: Check formatting
-      run: cargo fmt --all --check
-    - name: Check documentation
-      run: cargo doc --release
+      - uses: actions/checkout@v5
+
+      # The channel below must stay in sync with rust-toolchain.toml. This action
+      # requires the toolchain as an input and does not read the file itself.
+      # rustup then adds the components the file lists once cargo first runs.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.96.0
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build with zstd
+        run: cargo build --release --features zstd
+
+      - name: Build without default features
+        run: cargo build --release --no-default-features --features bincode
+
+      # wasm32-unknown-unknown has no thread support, so rayon stays off here.
+      - name: Check the wasm32 target
+        run: cargo check --target wasm32-unknown-unknown --no-default-features --features bincode
+
+      # Covers the golden regression suite, which compares solver output byte for
+      # byte and needs the release profile to finish in reasonable time.
+      - name: Run tests
+        run: cargo test --release --features zstd
+
+      - name: Clippy
+        run: cargo clippy --release --features zstd --all-targets -- -A clippy::needless_range_loop
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Check documentation
+        run: cargo doc --release
+
+      - name: Build benchmarks
+        run: cargo bench --bench solve --no-run --features zstd
+
+      - name: Run examples
+        run: |
+          cargo run --release --example basic
+          cargo run --release --example file_io
+          cargo run --release --example node_locking
+
+  # Separate from the stable job and with no dependency on it, so a nightly
+  # regression or a slow Miri run never hides the state of the stable gates.
+  nightly:
+    name: Nightly
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: --deny warnings
+      RUSTDOCFLAGS: --deny warnings
+    steps:
+      - uses: actions/checkout@v5
+
+      # rust-toolchain.toml pins a stable channel and overrides rustup's default,
+      # so every command in this job names +nightly to select the toolchain here.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: clippy, miri
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build with custom-alloc
+        run: cargo +nightly build --release --features custom-alloc
+
+      # The custom allocator keeps per-thread state, so the tests run serially.
+      - name: Test with custom-alloc
+        run: cargo +nightly test --release --features custom-alloc -- --test-threads 1
+
+      - name: Clippy with custom-alloc
+        run: cargo +nightly clippy --release --features custom-alloc -- -A clippy::needless_range_loop
+
+      # Miri interprets MIR and is orders of magnitude slower than native code, so
+      # it covers only the small Kuhn and Leduc game adapters. Those exercise the
+      # raw-pointer and MaybeUninit slice handling that the solver relies on.
+      # The release profile buys nothing under the interpreter and is omitted.
+      - name: Miri
+        run: cargo +nightly miri test --test kuhn --test leduc
