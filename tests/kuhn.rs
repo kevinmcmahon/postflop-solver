@@ -245,7 +245,9 @@ impl GameNode for KuhnNode {
 fn kuhn() {
     let target = 1e-4;
     let mut game = KuhnGame::new();
-    solve(&mut game, 10000, target, false);
+    // Miri runs the traversal to check aliasing, not to reach convergence.
+    let iterations = if cfg!(miri) { 20 } else { 10000 };
+    solve(&mut game, iterations, target, false);
 
     let root = game.root();
 
@@ -264,5 +266,7 @@ fn kuhn() {
         .fold(0.0, |acc, (&cfv, &strategy)| acc + cfv * strategy);
 
     let expected_ev = -1.0 / 18.0;
-    assert!((root_ev - expected_ev).abs() < 2.0 * target);
+    if !cfg!(miri) {
+        assert!((root_ev - expected_ev).abs() < 2.0 * target);
+    }
 }

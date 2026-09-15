@@ -440,7 +440,9 @@ impl GameNode for LeducNode {
 fn leduc() {
     let target = 1e-4;
     let mut game = LeducGame::new(false);
-    solve(&mut game, 10000, target, false);
+    // Miri runs the traversal to check aliasing, not to reach convergence.
+    let iterations = if cfg!(miri) { 20 } else { 10000 };
+    solve(&mut game, iterations, target, false);
 
     let root = game.root();
 
@@ -459,14 +461,18 @@ fn leduc() {
         .fold(0.0, |acc, (&ev, &strategy)| acc + ev * strategy);
 
     let expected_ev = -0.0856; // verified by OpenSpiel
-    assert!((root_ev - expected_ev).abs() < 2.0 * target);
+    if !cfg!(miri) {
+        assert!((root_ev - expected_ev).abs() < 2.0 * target);
+    }
 }
 
 #[test]
 fn leduc_compressed() {
     let target = 1e-3;
     let mut game = LeducGame::new(true);
-    solve(&mut game, 10000, target, false);
+    // Miri runs the traversal to check aliasing, not to reach convergence.
+    let iterations = if cfg!(miri) { 20 } else { 10000 };
+    solve(&mut game, iterations, target, false);
 
     let root = game.root();
 
@@ -489,5 +495,7 @@ fn leduc_compressed() {
         });
 
     let expected_ev = -0.0856; // verified by OpenSpiel
-    assert!((root_ev - expected_ev).abs() < 2.0 * target);
+    if !cfg!(miri) {
+        assert!((root_ev - expected_ev).abs() < 2.0 * target);
+    }
 }
