@@ -1,0 +1,72 @@
+# Solve cost exploration: design
+
+Date: 2026-09-15. Repositories: postflop-solver (this fork) and hand-ranger.
+
+## Goal
+
+Lower the cost per accepted hand for the 200bb round of hand-ranger without moving graded references beyond the agreed tolerance. A hand is two solves of the same tree (600 and 1,000 iterations) plus a stability check; it is accepted when every graded step of the line agrees within 0.03 total variation and final exploitability is at or below 0.5 percent of the pot. The number to minimize is dollars per accepted hand on the K♣7♠2♦ 200bb rich tree (36.9 GB compressed), with peak memory alongside, because memory decides the instance and how many solves share it, and per-iteration time decides the bill.
+
+Two capabilities matter more than speed and land first: solve parameters (discount exponents and the averaging restart schedule) and a way to derive other lines on a solved flop without re-solving. Each amended line last round cost a fresh two-hour solve.
+
+## Facts the design rests on
+
+- Iterations are full-tree traversals and memory-bandwidth bound: 4 to 6 seconds per iteration at 4 cores on 4 to 7 GB trees. Every byte removed from node storage is paid back on every iteration.
+- The engine is bit-deterministic across thread counts; the golden suite in `tests/golden.rs` and the criterion benches in `benches/solve.rs` guard it.
+- The hand-ranger adapter (`adapters/postflop-solver`) pins upstream b-inary at revision 9d1509f. No engine change reaches a dataset solve until the adapter is repointed at this fork, which is a hand-ranger decision recorded in an ADR superseding ADR-0008.
+- The reference hand hr-0002 is the J♠9♠6♦ two-tone tree at 100bb: 7.8 GB uncompressed, 4.0 GB compressed. Its pinned-build exports (`solver-export.json` at 600 iterations, `stability-export.json` at 1,000) are committed under `dataset/hands/hr-0002`, and `hand-ranger-gen stability --reuse-export <export> --hand dataset/hands/hr-0002` grades any export in protocol format against `hand.json`'s references.
+- The engine's native save (`save_data_to_file`) writes the strategy storage a browser needs and nothing else; loading a saved game and playing a line reproduces the path export without solving.
+- Averaging today: discount exponents alpha 1.5, beta 0, gamma 3, and the cumulative strategy is zeroed at iterations 4, 16, 64, 256, 1,024. The paper's schedule is gamma 2 with no restart. Fixed counts of 600 and 1,000 were chosen to sit inside one restart window; under target-based stopping only four of ten hands passed the 0.03 check.
+
+## Phase 1: gate, parameters, derivation
+
+### 1a. Regression gate (first deliverable)
+
+Purpose: prove a fork build reproduces hr-0002 within tolerance before any parameter or export work, so every later change is measured against a known-good fork build.
+
+- `adapters/postflop-solver/gate.sh` in hand-ranger builds the adapter against a solver given as a local path or git revision, using a cargo `[patch]` override so the committed pin is untouched. It solves `dataset/hands/hr-0002/solver-request.json` as is (version 3: 600 iterations, target 0, check every 100) and the same request with `max_iterations` 1,000, writes both exports, runs the stability tool once per export, and prints the per-step total-variation table with a single pass or fail line.
+- Pass rule: every graded step within 0.03 of `hand.json`'s references for both exports, and final exploitability at or below 2.75 chips (0.5 percent of 550).
+- The gate runs locally on the developer machine, where the adapter is built. Both solves take about 95 minutes at 4 cores. The script also accepts any other request for quick checks, without the pass rule.
+- The pinned build's exports are not regenerated; the committed files are the baseline.
+- Once the fork passes on its unchanged engine, the superseding ADR repoints the adapter, and it states that the 200bb round is solved entirely on the fork build that passed the gate.
+
+### 1b. Solve parameters
+
+- postflop-solver gains `SolveParams { alpha: f32, beta: f32, gamma: f32, restart: RestartSchedule }` where `RestartSchedule` is `PowersOfFour`, `None`, or `At(Vec<u32>)`. Named presets: `SolveParams::current()` (1.5, 0, 3, `PowersOfFour`) and `SolveParams::paper()` (1.5, 0, 2, `None`).
+- `solve_with_params` and `solve_step_with_params` take the struct; the existing `solve` and `solve_step` call them with `current()`, so every existing golden stays byte-identical. The discount computation in `src/solver.rs` reads the struct instead of constants.
+- Tests: a golden scenario on the paper preset; Kuhn and Leduc convergence under both presets; the existing goldens unchanged.
+- Protocol 0.2 adds `solve.discount { alpha, beta, gamma, restart }` with `current` as the default when absent. The adapter still reads 0.1 requests, and regenerating a committed hand from its saved export stays byte for byte. The export echoes the block, and hand-ranger's generator carries it into `hand.json`'s configuration so the parameters a hand was solved under are part of its record.
+- Experiment, after the gate and the parameters land: hr-0002 under the paper preset with target-based stopping, graded against the same references, to decide whether fixed counts can go.
+
+### 1c. Line derivation from a saved game, optional and off by default
+
+- Not a JSON dump. Strategies alone on the rich tree are 18 GB at 16 bits; JSON would triple that. The engine's native save already holds what derivation needs.
+- Protocol 0.2 adds `export.save_game` (path; absent means off). When set, the adapter saves the solved game next to the export after writing it.
+- The adapter gains a `derive` mode: given a saved game and a request whose `path` names any line, it loads the game and writes an export in the same node format as a fresh solve, with no solve.
+- Provenance: a derived export records that it came from a saved game: the saved file's hash, the solve parameters and iteration count that produced it, and the fork revision. hand-ranger keeps the solver block from the export, and a derived hand must be reproducible from that record.
+- Both solves of a hand (600 and 1,000) need saved games if a derived line is to pass the stability check. At up to 18 GB each they live in object storage, never in git.
+- Engine work: a test that a saved-then-loaded game reproduces a path export bit for bit, and a check of what `save_data_to_file` writes at each storage mode so the file holds strategies only.
+
+## Phase 2: cost model (prepared now, cloud runs gated on the AWS account and the Terraform review)
+
+- A runner in hand-ranger drives the adapter on the probe requests under `docs/research/tree-probe-200bb` and records, per run: threads, seconds per iteration, peak resident memory, the request's memory figure, and the fork revision. Mac runs use `j96-200-tree01` (5.9 GB) and `k72-200bb-tree01` (10 GB) at 1, 2, 4, and 8 threads.
+- The model: dollars per accepted hand equals 1,600 iterations times seconds per iteration times instance price per hour, divided by 3,600 and by the number of solves that fit in the instance's memory at once.
+- Because iteration time is bandwidth bound, the runner also measures a plain streaming-bandwidth figure on the machine, so an instance's iteration time can be predicted from its bandwidth before renting it.
+- Cloud validation: one Graviton instance and one x86 instance, one solve each of `k72-200bb-tree01` under the same request, on demand, terminated on completion. The result decides the default instance type in the Terraform being written now (currently r7a.4xlarge). The runbook is written in phase 2 and waits for the account.
+
+## Phase 3: memory reductions, each gated by 1a and priced by phase 2
+
+In payoff order, each on its own branch with its evidence and a before-and-after cost line:
+
+1. Solve-only mode that skips the IP counterfactual value buffer. First measure the buffer's share of the rich tree's storage, and confirm `compute_exploitability` does not read it. The export uses no expected values.
+2. Dead-hand elimination at turn and river nodes: hands blocked by the dealt cards are allocated today, up to 15 percent of the nodes that dominate storage. This rewrites the storage layout and is done as part of the node storage refactor from the architecture review, not separately.
+3. Split precision (regrets and cumulative strategy at different widths). Last, because it can move references; the gate re-runs on hr-0002.
+
+Dataset consistency: any change that moves references means a set is solved on one adapter pin per version of the set. The export records adapter and engine revision per hand, so mixed pins are visible.
+
+Out of scope: river-tree parallelism, `custom-alloc`.
+
+## Where things live
+
+- postflop-solver: `SolveParams`, save-and-derive engine test, memory reductions, goldens and benches (a scaled-down scenario from `j96-200-tree01` joins both).
+- hand-ranger: protocol 0.2, adapter (gate script, `derive` mode, discount pass-through), generator change for the configuration record, cost runner and runbook, superseding ADR for ADR-0008.
+- Order across repositories, fixed: gate script, gate run on the unchanged fork, ADR and repoint, then engine change, adapter change, gate run, per section.
