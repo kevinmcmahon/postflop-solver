@@ -241,13 +241,12 @@ impl GameNode for KuhnNode {
     }
 }
 
-#[test]
-fn kuhn() {
+fn solve_kuhn(params: &SolveParams) {
     let target = 1e-4;
     let mut game = KuhnGame::new();
     // Miri runs the traversal to check aliasing, not to reach convergence.
     let iterations = if cfg!(miri) { 20 } else { 10000 };
-    solve(&mut game, iterations, target, false);
+    solve_with_params(&mut game, iterations, target, false, params);
 
     let root = game.root();
 
@@ -269,4 +268,38 @@ fn kuhn() {
     if !cfg!(miri) {
         assert!((root_ev - expected_ev).abs() < 2.0 * target);
     }
+}
+
+#[test]
+fn kuhn() {
+    solve_kuhn(&SolveParams::current());
+}
+
+// Miri covers the same traversal through the current-preset `kuhn` test above.
+#[cfg_attr(miri, ignore)]
+#[test]
+fn kuhn_paper_preset() {
+    solve_kuhn(&SolveParams::paper());
+}
+
+#[test]
+#[should_panic(expected = "SolveParams alpha must not be NaN")]
+fn solve_step_with_params_panics_on_nan_alpha() {
+    let game = KuhnGame::new();
+    let params = SolveParams {
+        alpha: f64::NAN,
+        ..SolveParams::current()
+    };
+    solve_step_with_params(&game, 0, &params);
+}
+
+#[test]
+#[should_panic(expected = "SolveParams beta must not be NaN")]
+fn solve_step_with_params_panics_on_nan_beta() {
+    let game = KuhnGame::new();
+    let params = SolveParams {
+        beta: f64::NAN,
+        ..SolveParams::current()
+    };
+    solve_step_with_params(&game, 0, &params);
 }

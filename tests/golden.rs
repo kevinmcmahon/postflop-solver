@@ -144,7 +144,14 @@ fn flop_uncompressed() {
         card_config("Td9d6h", None, None),
         tree_config(BoardState::Flop, 0.0, 0.0),
     );
-    check_golden("flop_uncompressed", game, false, 30, None);
+    check_golden(
+        "flop_uncompressed",
+        game,
+        false,
+        30,
+        None,
+        &SolveParams::current(),
+    );
 }
 
 #[test]
@@ -153,7 +160,33 @@ fn flop_compressed() {
         card_config("Td9d6h", None, None),
         tree_config(BoardState::Flop, 0.0, 0.0),
     );
-    check_golden("flop_compressed", game, true, 30, None);
+    check_golden(
+        "flop_compressed",
+        game,
+        true,
+        30,
+        None,
+        &SolveParams::current(),
+    );
+}
+
+/// The `flop_compressed` scenario, solved under `SolveParams::paper()` instead of the engine's
+/// default. This is the only golden scenario on the paper preset; it exists to pin the paper's
+/// discount schedule the same way the other scenarios pin the default one.
+#[test]
+fn flop_paper_preset() {
+    let game = game(
+        card_config("Td9d6h", None, None),
+        tree_config(BoardState::Flop, 0.0, 0.0),
+    );
+    check_golden(
+        "flop_paper_preset",
+        game,
+        true,
+        30,
+        None,
+        &SolveParams::paper(),
+    );
 }
 
 #[test]
@@ -162,7 +195,7 @@ fn turn_start() {
         card_config("Td9d6h", Some("Qc"), None),
         tree_config(BoardState::Turn, 0.0, 0.0),
     );
-    check_golden("turn_start", game, false, 50, None);
+    check_golden("turn_start", game, false, 50, None, &SolveParams::current());
 }
 
 #[test]
@@ -171,7 +204,14 @@ fn river_start() {
         card_config("Td9d6h", Some("Qc"), Some("2s")),
         tree_config(BoardState::River, 0.0, 0.0),
     );
-    check_golden("river_start", game, false, 100, None);
+    check_golden(
+        "river_start",
+        game,
+        false,
+        100,
+        None,
+        &SolveParams::current(),
+    );
 }
 
 #[test]
@@ -180,7 +220,14 @@ fn monotone_flop() {
         card_config("8h7h2h", None, None),
         tree_config(BoardState::Flop, 0.0, 0.0),
     );
-    check_golden("monotone_flop", game, true, 30, None);
+    check_golden(
+        "monotone_flop",
+        game,
+        true,
+        30,
+        None,
+        &SolveParams::current(),
+    );
 }
 
 #[test]
@@ -189,7 +236,14 @@ fn raked_river() {
         card_config("Td9d6h", Some("Qc"), Some("2s")),
         tree_config(BoardState::River, 0.05, 30.0),
     );
-    check_golden("raked_river", game, false, 100, None);
+    check_golden(
+        "raked_river",
+        game,
+        false,
+        100,
+        None,
+        &SolveParams::current(),
+    );
 }
 
 #[test]
@@ -198,12 +252,26 @@ fn node_locking() {
         card_config("Td9d6h", None, None),
         tree_config(BoardState::Flop, 0.0, 0.0),
     );
-    check_golden("node_locking", game, false, 30, Some(lock_oop_root));
+    check_golden(
+        "node_locking",
+        game,
+        false,
+        30,
+        Some(lock_oop_root),
+        &SolveParams::current(),
+    );
 }
 
 #[test]
 fn bunching() {
-    check_golden("bunching", bunching_game(), false, 20, None);
+    check_golden(
+        "bunching",
+        bunching_game(),
+        false,
+        20,
+        None,
+        &SolveParams::current(),
+    );
 }
 
 /// Iterations used by the thread-independence test. It solves the `flop_compressed` game twice,
@@ -233,6 +301,7 @@ fn thread_count_does_not_change_digest() {
                 true,
                 THREAD_INDEPENDENCE_ITERATIONS,
                 None,
+                &SolveParams::current(),
             )
         })
     };
@@ -258,8 +327,9 @@ fn check_golden(
     compressed: bool,
     iterations: u32,
     lock: Option<fn(&mut PostFlopGame)>,
+    params: &SolveParams,
 ) {
-    let digest = solve_and_digest(name, &mut game, compressed, iterations, lock);
+    let digest = solve_and_digest(name, &mut game, compressed, iterations, lock, params);
     let path = golden_path(name);
 
     if std::env::var("UPDATE_GOLDEN").as_deref() == Ok("1") {
@@ -301,6 +371,7 @@ fn solve_and_digest(
     compressed: bool,
     iterations: u32,
     lock: Option<fn(&mut PostFlopGame)>,
+    params: &SolveParams,
 ) -> String {
     game.allocate_memory(compressed);
 
@@ -308,7 +379,7 @@ fn solve_and_digest(
         lock(game);
     }
 
-    let exploitability = solve(game, iterations, 0.0, false);
+    let exploitability = solve_with_params(game, iterations, 0.0, false, params);
     game.back_to_root();
 
     let mut lines = Vec::new();

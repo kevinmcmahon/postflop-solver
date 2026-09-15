@@ -6,7 +6,7 @@
 - `bincode` and `bincode_derive` are pinned to exactly `2.0.0-rc.3`. bincode 2.0.0 added a `Context` generic to the `Decode` trait, which the codec in this crate does not implement.
 - `zstd` is updated to 0.14, `rayon` to 1.12 and `regex` to 1.13. The `once_cell` dependency is removed in favour of `std::sync::LazyLock`.
 - `apply_swap` no longer forms two aliasing references to the same slice, an error Miri reported. An out-of-range swap index is a panic instead of silent memory corruption.
-- `tests/golden.rs` pins the output of the solver on eight scenarios and `benches/solve.rs` measures the time a solve takes on five of them. See [docs/benchmarks.md](docs/benchmarks.md) for how to run both and what a refactor of the solver has to show.
+- `tests/golden.rs` pins the output of the solver on nine scenarios and `benches/solve.rs` measures the time a solve takes on five of them. See [docs/benchmarks.md](docs/benchmarks.md) for how to run both and what a refactor of the solver has to show.
 - CI runs the gates on the pinned stable toolchain, checks the `wasm32-unknown-unknown` target and the build without default features, and runs the `custom-alloc` build and Miri on nightly. Dependabot proposes dependency updates weekly.
 
 ## 2023-10-01

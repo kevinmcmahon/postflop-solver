@@ -17,7 +17,7 @@ locking, and the recursion fans out over rayon. Treat every part of that machine
 
 ## Core rules
 
-1. The golden suite is the behaviour oracle. `tests/golden.rs` solves eight fixed scenarios, walks
+1. The golden suite is the behaviour oracle. `tests/golden.rs` solves nine fixed scenarios, walks
    each solved tree through the public interface, and compares a text digest byte for byte against a
    checked-in file in `tests/golden/`. A change to the internals is behaviour preserving when those
    digests are unchanged. There is no tolerance and there is no second oracle.
@@ -181,7 +181,7 @@ timings move less than the code generation did.
 
 | File | Contents |
 | --- | --- |
-| `golden.rs` | The behaviour oracle. Eight scenarios, the digest format, and the thread-independence test. |
+| `golden.rs` | The behaviour oracle. Nine scenarios, the digest format, and the thread-independence test. |
 | `golden/*.txt` | The checked-in digests, one per scenario. |
 | `kuhn.rs` | A Kuhn poker adapter implementing `Game` and `GameNode`. Small enough for Miri. |
 | `leduc.rs` | A Leduc hold'em adapter, with isomorphism and compression. Small enough for Miri. |
@@ -237,7 +237,8 @@ it compiles.
 
 Compression is a second representation of every stored value, as `i16` with an `f32` scale per node
 rather than `f32`. Both paths have to be maintained together, and the golden suite covers both:
-`flop_compressed` and `monotone_flop` store compressed values, the other six store floats.
+`flop_compressed`, `monotone_flop` and `flop_paper_preset` store compressed values, the other six
+store floats.
 
 `BunchingData::process` accumulates into atomic floats from parallel workers, so its output depends
 on the order the workers finish. The `bunching` golden scenario runs that preprocessing on a pool of
@@ -246,8 +247,12 @@ independent. Until the accumulation is fixed, bunching preprocessing has to run 
 anywhere a reproducible result is required.
 
 `f64::powf` in `src/action_tree.rs` computes geometric bet sizes and is a libm call rather than a
-correctly rounded IEEE operation. It is the one place where a platform difference could reach the
-digests, and it would show as a different `nodes` count rather than as drift in the values.
+correctly rounded IEEE operation. `DiscountParams::new` in `src/solver.rs` also calls `powf`, for
+an alpha other than 1.5 or a nonzero beta, but every golden scenario passes `SolveParams::current()`
+or `SolveParams::paper()`, and both presets keep that call at exponent 0.0, which IEEE 754 and C99
+Annex F define as exactly 1.0 for every base. So the bet-size `powf` call is the one place where a
+platform difference could reach the digests today, and it would show as a different `nodes` count
+rather than as drift in the values; a non-preset `SolveParams` would carry the same caveat.
 
 ## Documentation map
 

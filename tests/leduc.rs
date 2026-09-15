@@ -436,13 +436,12 @@ impl GameNode for LeducNode {
     }
 }
 
-#[test]
-fn leduc() {
+fn solve_leduc(params: &SolveParams) {
     let target = 1e-4;
     let mut game = LeducGame::new(false);
     // Miri runs the traversal to check aliasing, not to reach convergence.
     let iterations = if cfg!(miri) { 20 } else { 10000 };
-    solve(&mut game, iterations, target, false);
+    solve_with_params(&mut game, iterations, target, false, params);
 
     let root = game.root();
 
@@ -467,12 +466,23 @@ fn leduc() {
 }
 
 #[test]
-fn leduc_compressed() {
+fn leduc() {
+    solve_leduc(&SolveParams::current());
+}
+
+// Miri covers the same traversal through the current-preset `leduc` test above.
+#[cfg_attr(miri, ignore)]
+#[test]
+fn leduc_paper_preset() {
+    solve_leduc(&SolveParams::paper());
+}
+
+fn solve_leduc_compressed(params: &SolveParams) {
     let target = 1e-3;
     let mut game = LeducGame::new(true);
     // Miri runs the traversal to check aliasing, not to reach convergence.
     let iterations = if cfg!(miri) { 20 } else { 10000 };
-    solve(&mut game, iterations, target, false);
+    solve_with_params(&mut game, iterations, target, false, params);
 
     let root = game.root();
 
@@ -498,4 +508,16 @@ fn leduc_compressed() {
     if !cfg!(miri) {
         assert!((root_ev - expected_ev).abs() < 2.0 * target);
     }
+}
+
+#[test]
+fn leduc_compressed() {
+    solve_leduc_compressed(&SolveParams::current());
+}
+
+// Miri covers the same traversal through the current-preset `leduc_compressed` test above.
+#[cfg_attr(miri, ignore)]
+#[test]
+fn leduc_compressed_paper_preset() {
+    solve_leduc_compressed(&SolveParams::paper());
 }

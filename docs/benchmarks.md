@@ -8,12 +8,16 @@ digest. The digest is compared byte for byte with a checked-in file in `tests/go
 exist so that a change to the internals, such as the layout of the node storage, can be shown to
 leave the numbers alone.
 
-Eight scenarios cover the cases that take different paths through the solver. Four of them start on
-the flop, two start on the turn and two start on the river. Two of them store the node values as
+Nine scenarios cover the cases that take different paths through the solver. Five of them start on
+the flop, two start on the turn and two start on the river. Three of them store the node values as
 16-bit integers instead of 32-bit floats, and the rest use 32-bit floats. One flop scenario uses a
 monotone board, which exercises the isomorphism of suits, and another locks part of the strategy of
-the out-of-position player at the root before solving. One river scenario charges rake. The last
-scenario applies the bunching effect.
+the out-of-position player at the root before solving. One river scenario charges rake. One scenario
+applies the bunching effect, and one, `flop_paper_preset`, solves the same board as
+`flop_compressed` under the Discounted CFR paper's discount schedule instead of the engine's
+default; that preset also turns the cumulative-strategy restart off. Every scenario passes a
+`SolveParams` value to `solve_with_params`; `flop_paper_preset` is the only one that passes
+`SolveParams::paper()`, and the rest pass `SolveParams::current()`.
 
 The walk is a depth-first traversal through the public interface of `PostFlopGame`. It records one
 line per player node before descending into that node's children, visits every action of a player
@@ -53,24 +57,36 @@ the header of each file never causes a failure.
 
 ### Determinism
 
-The numeric core of the solver uses only addition, subtraction, multiplication, division, `sqrt`
-and `powi`. The first five are correctly rounded under IEEE 754, and the one call to `powi` has a
-small constant exponent and compiles to a fixed chain of multiplications. The parallel parts of the
-solve write to disjoint slices and reduce sequentially. Digests are therefore expected to hold
+The numeric core of the solver uses only addition, subtraction, multiplication, division, `sqrt`,
+`powi` and one `powf` call. The first five are correctly rounded under IEEE 754.
+`DiscountParams::new` takes the alpha == 1.5 special case, `t * sqrt(t)`, in both presets, so its
+only `powf` call is the one for beta, and both presets set beta to 0.0, so that call always has
+exponent 0.0. IEEE 754 and C99 Annex F define `pow(x, 0.0)` as exactly 1.0 for every base, so the
+preset digests stay portable even though `f64::powf` is a libm call rather than a correctly rounded
+IEEE operation. The `powi` call raises the cumulative-strategy ratio to `params.gamma`, a runtime
+exponent rather than a compile-time constant. Each multiplication in that chain is still correctly
+rounded under IEEE 754, and the chain itself is fixed for a given exponent on a given toolchain;
+with a runtime exponent the multiplication order comes from the compiler's `powi` routine, so it is
+reproducible on one toolchain rather than guaranteed across every platform. The parallel parts of
+the solve write to disjoint slices and reduce sequentially. Digests are therefore expected to hold
 across platforms and across thread counts.
 
 `thread_count_does_not_change_digest` checks the thread half of that claim directly. It solves the
 same game on a pool of one thread and on a pool of four and asserts that the two digests are equal.
-All eight digests also come out unchanged from a build with
+All nine digests also come out unchanged from a build with
 `--no-default-features --features bincode`, which leaves rayon out of the crate altogether.
 
-One call sits outside that argument. The `powf` call in `src/action_tree.rs` computes geometric bet
+Two calls sit outside that argument. The `powf` call in `src/action_tree.rs` computes geometric bet
 sizes, and `f64::powf` is a libm call rather than a correctly rounded IEEE operation, so its last
 bits may differ between platforms. The result is rounded to whole chips, so a difference has to
 cross a rounding boundary to be visible at all, and when it does it changes a bet amount and
 therefore the shape of the action tree. That surfaces as a different `nodes` count rather than as
 drift in the values, and it is the first thing to check if a Linux run disagrees with the
-checked-in files.
+checked-in files. The other is a `powf` call in `DiscountParams::new`, once alpha is not 1.5
+or beta is not 0.0: a non-preset `SolveParams` reaches `f64::powf` with that runtime exponent and
+carries the same platform caveat as the bet-size computation. Neither preset triggers it, so it
+does not affect the checked-in digests, but a caller who solves with a custom `SolveParams` should
+expect it.
 
 If a run on another platform disagrees with the checked-in files, that is a result worth chasing
 rather than a reason to introduce a tolerance.
