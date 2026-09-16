@@ -106,3 +106,30 @@ Record both revisions and the comparison alongside dedicated save/derive integra
 Solver behavior, storage, serialization, dependency and build changes still require the full Mac
 gate. This exception supersedes the unconditional run requirement above for the 1c test/docs unit;
 it does not claim another two-solve gate was executed.
+
+## 2026-09-16: accepted Phase 2 measurement correction
+
+The original Phase 2 text above predates the recorded x86 cloud measurements. Those runs
+are historical baselines, not a controlled Graviton comparison or same-host thread sweep.
+The accepted Phase 2 plan adds Mac 1/2/4/8-thread sweeps on both stated probe requests,
+streaming copy/triad measurements, and matched r7a.4xlarge/r7g.4xlarge studies in us-east-2.
+It changes no solver production code, protocol or engine pin.
+
+Correct the cost formula: total billed experiment cost divided by accepted results. Memory
+capacity alone cannot justify dividing isolated solve time by concurrent arena count.
+Measure batch throughput at concurrency 1/2/4 and validate the selected configuration with
+600/1000 pairs. Include setup, verification and failures in billed cost. Repeated benchmark
+fixtures do not measure the acceptance rate of arbitrary future hands. Rich-tree costs
+remain projections because its recorded solve failed acceptance.
+
+The Mac samples use 300 iterations, checks every 100 and three repetitions. External
+checkpoint timing excludes startup through iteration 100 but includes exploitability checks;
+it is not pure CFR time. Keep whole-process time separate. Record peak RSS, source/build
+identity, raw output and memory-pressure/swap counters; active swapping invalidates a sample.
+Bandwidth measures logical traffic and supports a testable prediction, not a universal law.
+
+Cloud execution requires a dated estimate and Kevin's review of the Terraform plan and runtime
+limits before provisioning. A shutdown deadline precedes setup/builds, and partial evidence
+must survive failures. The study is incomplete until actual matched throughput and acceptance
+results are recorded. See hand-ranger's docs/research/solve-cost-phase-2/ for the implementation,
+runbook and evidence.
