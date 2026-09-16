@@ -47,6 +47,53 @@ If you have cloned this repository, you can run the example with the following c
 $ cargo run --release --example basic
 ```
 
+## Saving a solved tree and deriving another line
+
+With the default `bincode` feature, the existing native API saves a solved tree and loads it for
+traversal. Select full river depth to keep alternate actions and runouts on every street:
+
+```rust,ignore
+game.set_target_storage_mode(BoardState::River)?;
+save_data_to_file(&game, &memo, "solved.bin", None)?;
+
+let (mut loaded, memo): (PostFlopGame, String) =
+    load_data_from_file("solved.bin", Some(max_memory_bytes))?;
+loaded.back_to_root();
+// At player nodes, validate an action against available_actions(), then play its index.
+// At chance nodes, validate the card against possible_cards(), then play its card ID.
+loaded.cache_normalized_weights();
+let strategy = loaded.strategy();
+let reach = loaded.weights(loaded.current_player());
+let normalized_reach = loaded.normalized_weights(loaded.current_player());
+```
+
+This derives a line within the saved equilibrium. It does not solve a new subgame or change the
+ranges, board, betting tree or solve settings. Keep those settings and the originating solve result
+in the memo or a separate provenance record. The native game alone does not record iteration counts,
+discount parameters or the originating exploitability report. See [examples/file_io.rs](examples/file_io.rs)
+for the file API. `save_data_to_file` overwrites an existing destination; callers that need atomic
+publication or protection against overwriting must provide it themselves.
+
+Full `BoardState::River` serialization stores strategy storage, card and tree configuration, tree
+edits, node topology, scales, locks and other metadata. It omits counterfactual value buffers.
+Loading allocates those buffers again and calls `finalize` to rebuild values for a solved game.
+There are no CFR iterations, but loading has a computation cost and needs full-game memory.
+`target_memory_usage()` reports an estimate for that loaded game, not the file's byte length.
+The loader checks the header's estimate against `max_memory_bytes`; that is not a hard cap on
+process memory or transient allocations.
+
+`BoardState::Flop` and `BoardState::Turn` save only the selected streets and retain the values
+needed to browse them. They discard later node storage in the file. Selecting a shallow target
+does not truncate the live game, but loading that file cannot recover later streets or upgrade it
+to full river depth. Use full depth for line derivation. Optional zstd file compression is separate
+from the engine's 16-bit value compression.
+
+`tests/save_and_derive.rs` checks exact strategy, reach, normalized reach, equity and value bits
+on alternate actions and runouts, including isomorphic suits, with both engine storage widths.
+These tests cover ordinary postflop games. They do not establish a persistence contract for the
+bunching effect or compatibility across engine revisions; consumers should validate their saved
+record's revision and configuration before traversal.
+
 ## Implementation details
 
 - **Algorithm**: The solver uses the state-of-the-art [Discounted CFR] algorithm.

@@ -75,3 +75,34 @@ Out of scope: river-tree parallelism, `custom-alloc`.
 - hand-ranger: protocol 0.2, adapter (gate script, `derive` mode, discount pass-through), generator change for the configuration record, cost runner and runbook, superseding ADR for ADR-0008.
 - The superseding ADR for ADR-0008 is a proposal until Kevin accepts it, per hand-ranger's documentation rule; the repoint happens after acceptance.
 - Order across repositories, fixed: gate script, gate run on the unchanged fork, ADR proposal and acceptance, repoint, then engine change, adapter change, gate run, per section.
+
+
+## 2026-09-16: accepted 1c storage and protocol correction
+
+The original text above records the design as proposed. The accepted 1c plan corrects these
+assumptions after inspecting the native codec:
+
+- Full `BoardState::River` files contain strategy storage plus configuration, tree edits, topology,
+  scales, locks and metadata. Counterfactual value buffers are omitted. On load the codec allocates
+  them and calls `finalize` for a solved game. Loading performs no CFR iterations, but requires
+  full-game memory and computation. File size is not a memory budget.
+- Shallow targets retain value buffers needed for browsing and discard deeper node storage. Only
+  full river saves qualify for alternate-line derivation through all streets. The existing
+  `set_target_storage_mode`, save/load and traversal APIs suffice; no format change is required.
+- hand-ranger save/derive controls belong in protocol 0.3, because 0.2 already contains solve
+  parameters and ADR-0021 requires a bump for a new engine knob. Old export reuse remains supported.
+- The adapter memo records the originating request, solver identity, complete solve result and
+  original export hash. Derivation validates the saved configuration and revision, preserves the
+  historical solve result and records the native file hash and reader identity. Saving follows
+  export output, so opting in does not change the fresh export hash.
+- Both 600- and 1,000-iteration games are required for derived generation and stability checks.
+  They remain outside git. Local round-trip tests are not the hand-ranger acceptance gate: Kevin
+  runs `adapters/postflop-solver/gate.sh` against the committed fork checkout on his Mac, and its
+  actual record belongs under `docs/evidence/solver-gate/<fork-hash>/` before repinning the adapter.
+
+Kevin amended the gate rule during 1c implementation: a test/docs-only fork commit may carry
+forward a prior passing gate after verifying that production code and build inputs are unchanged.
+Record both revisions and the comparison alongside dedicated save/derive integration checks.
+Solver behavior, storage, serialization, dependency and build changes still require the full Mac
+gate. This exception supersedes the unconditional run requirement above for the 1c test/docs unit;
+it does not claim another two-solve gate was executed.

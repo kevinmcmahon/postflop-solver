@@ -1,5 +1,14 @@
 # List of breaking changes
 
+## 2026-09-16
+
+- Document the existing full-depth save/load contract for deriving alternate lines. Full river
+  saves omit value buffers; loading restores them and requires full-game memory, not file-size
+  memory. Shallower saves discard later streets and retain their browsing values.
+- Add exact native round-trip tests for compressed and uncompressed games, alternate actions,
+  isomorphic runouts, shallow storage and the loader's estimated-memory check. No engine API,
+  file format or solver behavior changes.
+
 ## 2026-09-15
 
 - The crate is built with Rust edition 2024 and requires Rust 1.96.0 or later. `rust-toolchain.toml` pins that version and `Cargo.lock` is tracked, so every build uses the same compiler and the same dependency versions.
