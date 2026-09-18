@@ -133,3 +133,27 @@ limits before provisioning. A shutdown deadline precedes setup/builds, and parti
 must survive failures. The study is incomplete until actual matched throughput and acceptance
 results are recorded. See hand-ranger's docs/research/solve-cost-phase-2/ for the implementation,
 runbook and evidence.
+
+## 2026-09-18: closeout and deferred memory work
+
+Kevin confirmed Phase 2 complete. Both matched cloud studies passed their throughput,
+bandwidth and independent 600/1,000 acceptance checks. Hand-ranger ADR-0027 selects
+r7g.4xlarge with one process and 16 workers. The final comparison and source evidence
+are under hand-ranger's `docs/research/solve-cost-phase-2/`. Costs remain quoted-rate
+estimates; Kevin declined billing reconciliation as a completion requirement.
+
+ADR-0024 defers Mac scaling indefinitely. The Mac numerical regression gate remains
+required for solver behavior, storage, serialization, dependency or build changes.
+The existing documented test/docs-only carry-forward exception remains unchanged.
+
+ADR-0025 defers IP buffer reduction indefinitely after measuring only 1.46–1.48 percent
+rich-tree allocation savings. ADR-0026 likewise defers dead-hand elimination and its
+associated storage refactor: potential savings of about 7.7 percent did not establish
+a practical capacity or cost benefit sufficient to justify the risk. Both assessments
+retain their evidence in hand-ranger. Split precision remains unscheduled. Further
+solver optimization requires a concrete need and an accepted benefit assessment.
+
+These decisions supersede the original Phase 3 implementation order above without
+claiming those reductions were implemented. The adapter pin, protocol and solver
+production code remain unchanged. Unfinished benchmark, chance-evaluation and IP
+experiments are archived separately during repository cleanup, not adopted into main.
